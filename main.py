@@ -57,8 +57,17 @@ class local_docker:
         return local_list
 
     def get_remote_list(self):
-        result = requests.get(f"{web_url}/api/get_list.php?key={web_key}").json()
-        result_list = result['id_list']
+        try:
+            result = requests.get(f"{web_url}/api/get_list.php?key={web_key}")
+            result_json = json.loads(result.text)
+        except Exception as e:
+            print("获取API出错")
+            print(e)
+            return self.local_list
+        else:
+            if result.status_code != 200 or result_json['status'] == "fail":
+                return self.local_list
+        result_list = result_json['id_list']
         print(f"从云端获取到{len(result_list)}个容器")
         return result_list
 
