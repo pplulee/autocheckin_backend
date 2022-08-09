@@ -1,9 +1,9 @@
 import json
+import os
 import time
 
 import requests
 import schedule
-import os
 
 web_url = 'http://localhost:8080/'
 web_key = 'key'
@@ -49,9 +49,6 @@ class local_docker:
         print(f"从云端获取到{len(result_json['id_list'])}个容器")
         return result_json['id_list']
 
-    def sync_finish(self):
-        requests.get(f"{web_url}/api/sync_finish.php?key={web_key}")
-
     def sync(self):
         # 处理需要删除的容器（本地存在，云端不存在）
         for id in self.local_list:
@@ -66,7 +63,6 @@ class local_docker:
                 print(f"部署容器{id}")
                 self.deploy_docker(id)
                 self.local_list.append(id)
-        self.sync_finish()
 
 
 def job():
