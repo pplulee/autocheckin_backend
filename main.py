@@ -45,9 +45,9 @@ class local_docker:
         return local_list
 
     def get_remote_list(self):
-        result_json = json.loads(requests.get(f"{web_url}/api/get_list.php?key={web_key}").text)
-        print(f"从云端获取到{len(result_json['id_list'])}个容器")
-        return result_json['id_list']
+        result_list = json.loads(requests.get(f"{web_url}/api/get_list.php?key={web_key}").text)['id_list'].split(",")
+        print(f"从云端获取到{len(result_list)}个容器")
+        return result_list
 
     def sync(self):
         # 处理需要删除的容器（本地存在，云端不存在）
