@@ -5,8 +5,8 @@ import time
 import requests
 import schedule
 
-web_url = 'http://localhost:8080/'
-web_key = 'key'
+web_url = ''
+web_key = ''
 
 
 class local_docker:
@@ -20,7 +20,19 @@ class local_docker:
 
     def deploy_docker(self, id):
         data = self.get_parameter(id)
-        os.system(f"docker run -d --name=autosign_{id} \
+        print(f"部署容器{id}")
+        # os.system(f"docker run -d --name=autosign_{id} \
+        # -e username={data['username']} \
+        # -e password={data['password']} \
+        # -e webdriver={data['webdriver']} \
+        # -e tgbot_token={data['tgbot_token']} \
+        # -e tgbot_chat_id={data['tgbot_chat_id']} \
+        # -e wxpusher_uid={data['wxpusher_uid']} \
+        # --log-opt max-size=1m \
+        # --log-opt max-file=1 \
+        # --restart=always \
+        # sahuidhsu/uom_autocheckin")
+        print(f"docker run -d --name=autosign_{id} \
         -e username={data['username']} \
         -e password={data['password']} \
         -e webdriver={data['webdriver']} \
@@ -45,11 +57,14 @@ class local_docker:
         return local_list
 
     def get_remote_list(self):
-        result_list = json.loads(requests.get(f"{web_url}/api/get_list.php?key={web_key}").text)['id_list'].split(",")
+        result = requests.get(f"{web_url}/api/get_list.php?key={web_key}").json()
+        result_list = result['id_list']
         print(f"从云端获取到{len(result_list)}个容器")
         return result_list
 
     def sync(self):
+        print("开始同步")
+        self.local_list = self.get_local_list()
         # 处理需要删除的容器（本地存在，云端不存在）
         for id in self.local_list:
             if id not in self.get_remote_list():
@@ -63,6 +78,7 @@ class local_docker:
                 print(f"部署容器{id}")
                 self.deploy_docker(id)
                 self.local_list.append(id)
+        print("同步完成")
 
 
 def job():
@@ -75,7 +91,7 @@ def main():
     global Local
     Local = local_docker()
     job()
-    schedule.every(10).minutes.do(job)
+    schedule.every(5).minutes.do(job)
     while True:
         schedule.run_pending()
         time.sleep(1)
