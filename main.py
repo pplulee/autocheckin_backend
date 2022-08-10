@@ -15,7 +15,13 @@ class local_docker:
 
     def get_parameter(self, id):
         print(f"获取容器{id}的参数")
-        result_json = json.loads(requests.get(f"{web_url}/api/get_parameter.php?key={web_key}&id={id}").text)
+        try:
+            result = requests.get(f"{web_url}/api/get_parameter.php?key={web_key}&id={id}")
+            result_json = json.loads(clean_html(result.text))
+        except Exception as e:
+            print("获取API出错")
+            print(e)
+            return None
         return result_json
 
     def deploy_docker(self, id):
@@ -59,7 +65,7 @@ class local_docker:
     def get_remote_list(self):
         try:
             result = requests.get(f"{web_url}/api/get_list.php?key={web_key}")
-            result_json = json.loads(result.text)
+            result_json = json.loads(clean_html(result.text))
         except Exception as e:
             print("获取API出错")
             print(e)
@@ -88,6 +94,13 @@ class local_docker:
                 self.deploy_docker(id)
                 self.local_list.append(id)
         print("同步完成")
+
+def clean_html(data):
+    pointer = len(data) - 1
+    while data[pointer] != ">" and pointer > 0:
+        pointer -= 1
+    return data[pointer + 1:]
+
 
 
 def job():
