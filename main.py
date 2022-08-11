@@ -49,6 +49,7 @@ class local_docker:
         for line in result.readlines():
             if line.find("autosign_") != -1:
                 local_list.append(line.strip().split("_")[1])
+        print(f"本地存在{len(local_list)}个容器")
         return local_list
 
     def get_remote_list(self):
@@ -62,7 +63,7 @@ class local_docker:
         else:
             if result.status_code != 200 or result_json['status'] == "fail":
                 return self.local_list
-        result_list = result_json['id_list']
+        result_list = result_json['id_list'].split(",")
         print(f"从云端获取到{len(result_list)}个容器")
         return result_list
 
@@ -72,24 +73,22 @@ class local_docker:
         # 处理需要删除的容器（本地存在，云端不存在）
         for id in self.local_list:
             if id not in self.get_remote_list():
-                print(f"移除容器{id}")
                 self.remove_docker(id)
                 self.local_list.remove(id)
         # 处理需要部署的容器（本地不存在，云端存在）
         remote_list = self.get_remote_list()
         for id in remote_list:
             if id not in self.local_list:
-                print(f"部署容器{id}")
                 self.deploy_docker(id)
                 self.local_list.append(id)
         print("同步完成")
+
 
 def clean_html(data):
     pointer = len(data) - 1
     while data[pointer] != ">" and pointer > 0:
         pointer -= 1
     return data[pointer:]
-
 
 
 def job():
@@ -102,7 +101,7 @@ def main():
     global Local
     Local = local_docker()
     job()
-    schedule.every(5).minutes.do(job)
+    schedule.every(1).minutes.do(job)
     while True:
         schedule.run_pending()
         time.sleep(1)
