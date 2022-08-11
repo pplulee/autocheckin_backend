@@ -27,23 +27,12 @@ class local_docker:
     def deploy_docker(self, id):
         data = self.get_parameter(id)
         print(f"部署容器{id}")
-        # os.system(f"docker run -d --name=autosign_{id} \
-        # -e username={data['username']} \
-        # -e password={data['password']} \
-        # -e webdriver={data['webdriver']} \
-        # -e tgbot_token={data['tgbot_token']} \
-        # -e tgbot_chat_id={data['tgbot_chat_id']} \
-        # -e wxpusher_uid={data['wxpusher_uid']} \
-        # --log-opt max-size=1m \
-        # --log-opt max-file=1 \
-        # --restart=always \
-        # sahuidhsu/uom_autocheckin")
-        print(f"docker run -d --name=autosign_{id} \
+        os.system(f"docker run -d --name=autosign_{id} \
         -e username={data['username']} \
         -e password={data['password']} \
         -e webdriver={data['webdriver']} \
         -e tgbot_token={data['tgbot_token']} \
-        -e tgbot_chat_id={data['tgbot_chat_id']} \
+        -e tgbot_userid={data['tgbot_userid']} \
         -e wxpusher_uid={data['wxpusher_uid']} \
         --log-opt max-size=1m \
         --log-opt max-file=1 \
@@ -99,7 +88,7 @@ def clean_html(data):
     pointer = len(data) - 1
     while data[pointer] != ">" and pointer > 0:
         pointer -= 1
-    return data[pointer + 1:]
+    return data[pointer:]
 
 
 
