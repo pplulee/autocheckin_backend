@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 
@@ -9,24 +10,39 @@ web_url = ''
 web_key = ''
 
 
+def info(text):
+    print("[INFO] " + text)
+    logging.info(text)
+
+
+def error(text):
+    print("[ERROR] " + text)
+    logging.critical(text)
+
+
 class local_docker:
     def __init__(self):
         self.local_list = self.get_local_list()
 
     def get_parameter(self, id):
-        print(f"获取容器{id}的参数")
+        info(f"获取容器{id}的参数")
         try:
-            result = requests.get(f"{web_url}/api/get_parameter.php?key={web_key}&id={id}")
+            result = requests.get(f"{web_url}/api/?action=get_parameter&key={web_key}&id={id}")
             result_json = json.loads(clean_html(result.text))
         except Exception as e:
-            print("获取API出错")
-            print(e)
+            error("获取API出错")
+            error(e)
             return None
+        else:
+            if result_json['status'] == "fail":
+                error(f"获取容器{id}的参数失败")
+                error(result_json['message'])
+                return None
         return result_json
 
     def deploy_docker(self, id):
         data = self.get_parameter(id)
-        print(f"部署容器{id}")
+        info(f"部署容器{id}")
         os.system(f"docker run -d --name=autosign_{id} \
         -e username={data['username']} \
         -e password={data['password']} \
@@ -40,7 +56,7 @@ class local_docker:
         sahuidhsu/uom_autocheckin")
 
     def remove_docker(self, id):
-        print(f"删除容器{id}")
+        info(f"删除容器{id}")
         os.system(f"docker stop autosign_{id} && docker rm autosign_{id}")
 
     def get_local_list(self):
@@ -49,26 +65,30 @@ class local_docker:
         for line in result.readlines():
             if line.find("autosign_") != -1:
                 local_list.append(line.strip().split("_")[1])
-        print(f"本地存在{len(local_list)}个容器")
+        info(f"本地存在{len(local_list)}个容器")
         return local_list
 
     def get_remote_list(self):
         try:
-            result = requests.get(f"{web_url}/api/get_list.php?key={web_key}")
+            result = requests.get(f"{web_url}/api/?action=get_list&key={web_key}")
             result_json = json.loads(clean_html(result.text))
         except Exception as e:
-            print("获取API出错")
-            print(e)
+            error("获取API出错")
+            error(e)
             return self.local_list
         else:
-            if result.status_code != 200 or result_json['status'] == "fail":
+            if result_json['status'] == "fail":
+                error(f"获取容器列表失败")
+                error(result_json['message'])
                 return self.local_list
         result_list = result_json['id_list'].split(",")
-        print(f"从云端获取到{len(result_list)}个容器")
+        if result_list == ['']:
+            result_list = []
+        info(f"从云端获取到{len(result_list)}个容器")
         return result_list
 
     def sync(self):
-        print("开始同步")
+        info("开始同步")
         self.local_list = self.get_local_list()
         # 处理需要删除的容器（本地存在，云端不存在）
         for id in self.local_list:
@@ -81,7 +101,7 @@ class local_docker:
             if id not in self.local_list:
                 self.deploy_docker(id)
                 self.local_list.append(id)
-        print("同步完成")
+        info("同步完成")
 
 
 def clean_html(data):
@@ -92,16 +112,16 @@ def clean_html(data):
 
 
 def job():
-    print("开始定时任务")
+    info("开始定时任务")
     Local.sync()
 
 
 def main():
-    print("自动签到后端服务启动")
+    info("自动签到后端服务启动")
     global Local
     Local = local_docker()
     job()
-    schedule.every(1).minutes.do(job)
+    schedule.every(10).minutes.do(job)
     while True:
         schedule.run_pending()
         time.sleep(1)
