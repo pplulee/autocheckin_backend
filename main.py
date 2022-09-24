@@ -6,8 +6,8 @@ import time
 import requests
 import schedule
 
-web_url = ''
-web_key = ''
+web_url = ""
+web_key = ""
 
 
 def info(text):
@@ -31,7 +31,7 @@ class local_docker:
             result_json = json.loads(clean_html(result.text))
         except Exception as e:
             error("获取API出错")
-            error(e)
+            print(e)
             return None
         else:
             if result_json['status'] == "fail":
@@ -74,7 +74,7 @@ class local_docker:
             result_json = json.loads(clean_html(result.text))
         except Exception as e:
             error("获取API出错")
-            error(e)
+            print(e)
             return self.local_list
         else:
             if result_json['status'] == "fail":
