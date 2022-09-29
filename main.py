@@ -43,9 +43,10 @@ class local_docker:
     def deploy_docker(self, id):
         data = self.get_parameter(id)
         info(f"部署容器{id}")
+        password = data['password'].replace("$", "\$")
         os.system(f"docker run -d --name=autosign_{id} \
         -e username={data['username']} \
-        -e password={data['password']} \
+        -e password={password} \
         -e webdriver={data['webdriver']} \
         -e tgbot_token={data['tgbot_token']} \
         -e tgbot_userid={data['tgbot_userid']} \
