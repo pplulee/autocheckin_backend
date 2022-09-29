@@ -53,7 +53,7 @@ class local_docker:
         -e wxpusher_uid={data['wxpusher_uid']} \
         --log-opt max-size=1m \
         --log-opt max-file=1 \
-        --restart=always \
+        --restart=on-failure \
         sahuidhsu/uom_autocheckin")
 
     def remove_docker(self, id):
@@ -62,7 +62,7 @@ class local_docker:
 
     def get_local_list(self):
         local_list = []
-        result = os.popen("docker ps --format \"{{.Names}}\"")
+        result = os.popen("docker ps -a --format \"{{.Names}}\"")
         for line in result.readlines():
             if line.find("autosign_") != -1:
                 local_list.append(line.strip().split("_")[1])
