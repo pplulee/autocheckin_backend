@@ -1,13 +1,20 @@
+import argparse
 import json
 import logging
 import os
+import threading
 import time
 
-import requests
 import schedule
+from flask import Flask, request
+from requests import get
 
-web_url = ""
-web_key = ""
+parser = argparse.ArgumentParser(description="")
+parser.add_argument("-api_url", help="API URL")
+parser.add_argument("-api_key", help="API key")
+parser.add_argument("--port", help="interface listen port", default=None, type=int)
+parser.add_argument("--password", help="interface password", default=None)
+args = parser.parse_args()
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -21,7 +28,9 @@ class local_docker:
     def get_parameter(self, id):
         logging.info(f"获取容器{id}的参数")
         try:
-            result = requests.get(f"{web_url}/api/?action=get_parameter&key={web_key}&id={id}")
+            result = get(f"{args.api_url}/api/", data={"action": "get_parameter",
+                                                       "key": args.api_key,
+                                                       "id": id})
             result_json = json.loads(clean_html(result.text))
         except Exception as e:
             logging.error("获取API出错")
@@ -36,6 +45,9 @@ class local_docker:
 
     def deploy_docker(self, id):
         data = self.get_parameter(id)
+        if data is None:
+            logging.error(f"获取容器{id}的参数失败，跳过部署")
+            return
         logging.info(f"部署容器{id}")
         password = data['password'].replace("$", "\$")
         os.system(f"docker run -d --name=autosign_{id} \
@@ -46,7 +58,7 @@ class local_docker:
         -e tgbot_userid={data['tgbot_userid']} \
         -e wxpusher_uid={data['wxpusher_uid']} \
         --log-opt max-size=1m \
-        --log-opt max-file=1 \
+        --log-opt max-file=2 \
         --restart=on-failure \
         sahuidhsu/uom_autocheckin")
 
@@ -65,7 +77,8 @@ class local_docker:
 
     def get_remote_list(self):
         try:
-            result = requests.get(f"{web_url}/api/?action=get_list&key={web_key}")
+            result = get(f"{args.api_url}/api/", data={"action": "get_list",
+                                                       "key": args.api_key})
             result_json = json.loads(clean_html(result.text))
         except Exception as e:
             logging.error("获取API出错")
@@ -130,6 +143,65 @@ def job():
     Local.sync()
 
 
+def start_app():
+    logging.info("启动后端接口")
+    app = Flask(__name__)
+
+    @app.before_request
+    def before_request():
+        # 检测请求类型是和否为POST
+        if request.method != 'POST':
+            logging.error("请求类型错误")
+            data = {'status': 'fail', 'msg': '请求类型错误'}
+            json_data = json.dumps(data).encode('utf-8')
+            return app.response_class(json_data, mimetype='application/json')
+        if 'key' not in request.headers:
+            logging.error("请求头中未包含key")
+            data = {'status': 'fail', 'msg': '请求头中未包含key'}
+            json_data = json.dumps(data).encode('utf-8')
+            return app.response_class(json_data, mimetype='application/json')
+        if request.headers['key'] != args.password:
+            logging.error("密码错误")
+            data = {'status': 'fail', 'msg': '密码错误'}
+            json_data = json.dumps(data).encode('utf-8')
+            return app.response_class(json_data, mimetype='application/json')
+
+    @app.route('/setTask', methods=['POST'])
+    def set_task():
+        logging.info("收到设置任务请求")
+        print(request.form)
+        if 'id' not in request.form:
+            logging.error("缺少任务id")
+            data = {'status': 'fail', 'msg': '缺少任务id'}
+        else:
+            Local.deploy_docker(request.form['id'])
+            data = {'status': 'success', 'msg': '设置成功'}
+        json_data = json.dumps(data).encode('utf-8')
+        return app.response_class(json_data, mimetype='application/json')
+
+    @app.route('/removeTask', methods=['POST'])
+    def remove_task():
+        logging.info("收到删除任务请求")
+        if 'id' not in request.form:
+            logging.error("缺少任务id")
+            data = {'status': 'fail', 'msg': '缺少任务id'}
+        else:
+            Local.remove_docker(request.form['id'])
+            data = {'status': 'success', 'msg': '删除成功'}
+        json_data = json.dumps(data).encode('utf-8')
+        return app.response_class(json_data, mimetype='application/json')
+
+    @app.route('/sync', methods=['POST'])
+    def sync():
+        logging.info("收到同步请求")
+        Local.sync()
+        data = {'status': 'success', 'msg': '同步成功'}
+        json_data = json.dumps(data).encode('utf-8')
+        return app.response_class(json_data, mimetype='application/json')
+
+    app.run(host='127.0.0.1', port=args.port)
+
+
 def main():
     logging.info("自动签到后端服务启动")
     os.system("docker pull sahuidhsu/uom_autocheckin")
@@ -138,7 +210,7 @@ def main():
     global Local
     Local = local_docker()
     job()
-    schedule.every(10).minutes.do(job)
+    schedule.every(30).minutes.do(job)
     schedule.every().day.at("00:00").do(update)
     while True:
         schedule.run_pending()
@@ -146,4 +218,7 @@ def main():
 
 
 if __name__ == '__main__':
+    if (args.port is not None) and (args.password is not None):
+        thread_app = threading.Thread(target=start_app, daemon=True)
+        thread_app.start()
     main()
