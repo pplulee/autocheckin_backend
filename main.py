@@ -7,7 +7,7 @@ import time
 
 import schedule
 from flask import Flask, request
-from requests import get
+from requests import post
 
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("-api_url", help="API URL")
@@ -28,18 +28,18 @@ class local_docker:
     def get_parameter(self, id):
         logging.info(f"获取容器{id}的参数")
         try:
-            result = get(f"{args.api_url}/api/", data={"action": "get_parameter",
-                                                       "key": args.api_key,
-                                                       "id": id})
-            result_json = json.loads(clean_html(result.text))
+            result = post(f"{args.api_url}/api/get_param",
+                          data={"task_id": id},
+                          headers={"key": args.api_key})
+            result_json = json.loads(result.text)
         except Exception as e:
             logging.error("获取API出错")
             logging.error(e)
             return None
         else:
-            if result_json['status'] == "fail":
+            if result_json['code'] != 200:
                 logging.error(f"获取容器{id}的参数失败")
-                logging.error(result_json['message'])
+                logging.error(result_json['msg'])
                 return None
         return result_json
 
@@ -55,7 +55,7 @@ class local_docker:
         -e password={password} \
         -e webdriver={data['webdriver']} \
         -e tgbot_token={data['tgbot_token']} \
-        -e tgbot_userid={data['tgbot_userid']} \
+        -e tgbot_chat_id={data['tgbot_chat_id']} \
         -e wxpusher_uid={data['wxpusher_uid']} \
         --log-opt max-size=1m \
         --log-opt max-file=2 \
@@ -77,21 +77,20 @@ class local_docker:
 
     def get_remote_list(self):
         try:
-            result = get(f"{args.api_url}/api/", data={"action": "get_list",
-                                                       "key": args.api_key})
-            result_json = json.loads(clean_html(result.text))
+            result = post(f"{args.api_url}/api/get_list",
+                          data={"key": args.api_key},
+                          headers={"key": args.api_key})
+            result_json = json.loads(result.text)
         except Exception as e:
             logging.error("获取API出错")
             print(e)
             return self.local_list
         else:
-            if result_json['status'] == "fail":
+            if result_json['code'] != 200:
                 logging.error(f"获取容器列表失败")
-                logging.error(result_json['message'])
+                logging.error(result_json['msg'])
                 return self.local_list
-        result_list = result_json['id_list'].split(",")
-        if result_list == ['']:
-            result_list = []
+        result_list = result_json['data']
         logging.info(f"从云端获取到{len(result_list)}个容器")
         return result_list
 
@@ -129,13 +128,6 @@ class local_docker:
 def update():
     global Local
     Local.update()
-
-
-def clean_html(data):
-    pointer = len(data) - 1
-    while data[pointer] != ">" and pointer > 0:
-        pointer -= 1
-    return data[pointer:]
 
 
 def job():
