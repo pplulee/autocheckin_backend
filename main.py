@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(description="")
 parser.add_argument("-api_url", help="API URL")
 parser.add_argument("-api_key", help="API key")
 parser.add_argument("--port", help="interface listen port", default=None, type=int)
-parser.add_argument("--password", help="interface password", default=None)
+parser.add_argument("--token", help="interface token", default=None)
 args = parser.parse_args()
 
 logging.basicConfig(level=logging.INFO,
@@ -155,14 +155,15 @@ def start_app():
             data = {'status': 'fail', 'msg': '请求类型错误'}
             json_data = json.dumps(data).encode('utf-8')
             return app.response_class(json_data, mimetype='application/json')
-        if 'key' not in request.headers:
-            logging.error("请求头中未包含key")
-            data = {'status': 'fail', 'msg': '请求头中未包含key'}
+        if 'token' not in request.headers:
+            logging.error("请求头中未包含token")
+            print(request.headers)
+            data = {'status': 'fail', 'msg': '请求头中未包含token'}
             json_data = json.dumps(data).encode('utf-8')
             return app.response_class(json_data, mimetype='application/json')
-        if request.headers['key'] != args.password:
+        if request.headers['token'] != args.token:
             logging.error("密码错误")
-            data = {'status': 'fail', 'msg': '密码错误'}
+            data = {'status': 'fail', 'msg': 'token错误'}
             json_data = json.dumps(data).encode('utf-8')
             return app.response_class(json_data, mimetype='application/json')
 
@@ -218,7 +219,7 @@ def main():
 
 
 if __name__ == '__main__':
-    if (args.port is not None) and (args.password is not None):
+    if (args.port is not None) and (args.token is not None):
         thread_app = threading.Thread(target=start_app, daemon=True)
         thread_app.start()
     main()
