@@ -170,7 +170,6 @@ def start_app():
     @app.route('/setTask', methods=['POST'])
     def set_task():
         logging.info("收到设置任务请求")
-        print(request.form)
         if 'id' not in request.form:
             logging.error("缺少任务id")
             data = {'status': 'fail', 'msg': '缺少任务id'}
