@@ -71,7 +71,7 @@ class local_docker:
         result = os.popen("docker ps -a --format \"{{.Names}}\"")
         for line in result.readlines():
             if line.find("autosign_") != -1:
-                local_list.append(line.strip().split("_")[1])
+                local_list.append(int(line.strip().split("_")[1]))
         logging.info(f"本地存在{len(local_list)}个容器")
         return local_list
 
@@ -97,13 +97,13 @@ class local_docker:
     def sync(self):
         logging.info("开始同步")
         self.local_list = self.get_local_list()
+        remote_list = self.get_remote_list()
         # 处理需要删除的容器（本地存在，云端不存在）
         for id in self.local_list:
-            if id not in self.get_remote_list():
+            if id not in remote_list:
                 self.remove_docker(id)
                 self.local_list.remove(id)
         # 处理需要部署的容器（本地不存在，云端存在）
-        remote_list = self.get_remote_list()
         for id in remote_list:
             if id not in self.local_list:
                 self.deploy_docker(id)
@@ -116,7 +116,7 @@ class local_docker:
         if len(self.local_list) == 0:
             logging.info("没有容器需要更新")
             return
-        local_list_str = " ".join(self.local_list)
+        local_list_str = " ".join(map(str, self.local_list))
         os.system(f"docker run --rm \
         -v /var/run/docker.sock:/var/run/docker.sock \
         containrrr/watchtower \
