@@ -41,7 +41,7 @@ class local_docker:
                 logging.error(f"获取容器{id}的参数失败")
                 logging.error(result_json['msg'])
                 return None
-        return result_json
+        return result_json['data']
 
     def deploy_docker(self, id):
         data = self.get_parameter(id)
@@ -53,7 +53,7 @@ class local_docker:
         os.system(f"docker run -d --name=autosign_{id} \
         -e username={data['username']} \
         -e password={password} \
-        -e webdriver={data['webdriver']} \
+        -e webdriver={data['webdriver_url']} \
         -e tgbot_token={data['tgbot_token']} \
         -e tgbot_chat_id={data['tgbot_chat_id']} \
         -e wxpusher_uid={data['wxpusher_uid']} \
@@ -166,7 +166,8 @@ def start_app():
             logging.error("缺少任务id")
             data = {'status': 'fail', 'msg': '缺少任务id'}
         else:
-            Local.deploy_docker(request.form['id'])
+            thread_set_task = threading.Thread(target=Local.deploy_docker, args=(request.form['id'],))
+            thread_set_task.start()
             data = {'status': 'success', 'msg': '设置成功'}
         json_data = json.dumps(data).encode('utf-8')
         return app.response_class(json_data, mimetype='application/json')
@@ -178,7 +179,8 @@ def start_app():
             logging.error("缺少任务id")
             data = {'status': 'fail', 'msg': '缺少任务id'}
         else:
-            Local.remove_docker(request.form['id'])
+            thread_remove_task = threading.Thread(target=Local.remove_docker, args=(request.form['id'],))
+            thread_remove_task.start()
             data = {'status': 'success', 'msg': '删除成功'}
         json_data = json.dumps(data).encode('utf-8')
         return app.response_class(json_data, mimetype='application/json')
